@@ -8,6 +8,7 @@ requires-python = ">=3.12"
 target-version = "py312"
 line-length = 88
 src = ["app", "tests"]
+exclude = ["alembic/versions/"]
 
 [tool.ruff.lint]
 select = [

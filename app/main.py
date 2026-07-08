@@ -23,6 +23,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 
+from app.api.v1.router import v1_router
 from app.config import get_settings
 from app.database import check_db_connection
 from app.logging_config import setup_logging
@@ -97,14 +98,17 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Register routes
+    # Register API routers
+    application.include_router(v1_router, prefix="/api/v1")
+
+    # Register system routes (health, root)
     _register_routes(application)
 
     return application
 
 
 # ---------------------------------------------------------------------------
-# Routes (will move to dedicated routers in Phase 2)
+# System Routes (health check, root)
 # ---------------------------------------------------------------------------
 
 
