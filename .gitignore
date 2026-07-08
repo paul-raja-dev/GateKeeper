@@ -1,6 +1,8 @@
 # Python bytecode
 __pycache__/
 *.py[cod]
+*$py.class
+*.pyo
 
 # Virtual environments
 venv/
@@ -9,9 +11,35 @@ env/
 
 # Environment variables and secrets
 .env
-.env.*
+.env.local
+.env.production
 
 # IDEs and OS files
 .vscode/
 .idea/
 .DS_Store
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# Alembic
+alembic/versions/__pycache__/
+
+# Docker
+docker/volumes/
+
+# Ruff
+.ruff_cache/
+
+# mypy
+.mypy_cache/

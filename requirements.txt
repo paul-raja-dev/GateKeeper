@@ -1,0 +1,42 @@
+# =============================================================================
+# GateKeeper - Direct Dependencies
+# =============================================================================
+# Install: pip install -r requirements.txt
+# Freeze:  pip freeze > requirements.lock (for reproducible builds)
+# =============================================================================
+
+# -- Web Framework ------------------------------------------------------------
+fastapi==0.139.0
+uvicorn[standard]==0.50.2
+
+# -- Database -----------------------------------------------------------------
+sqlalchemy[asyncio]==2.0.51
+asyncpg==0.31.0
+alembic==1.18.5
+
+# -- Configuration & Validation -----------------------------------------------
+pydantic==2.13.4
+pydantic-settings==2.14.2
+python-dotenv==1.2.2
+
+# -- Redis --------------------------------------------------------------------
+redis==6.2.0
+
+# -- Security (Phase 2+) -----------------------------------------------------
+python-jose[cryptography]==3.4.0
+passlib[bcrypt]==1.7.4
+python-multipart==0.0.32
+
+# -- Email Validation ---------------------------------------------------------
+email-validator==2.3.0
+
+# -- HTTP Client (for OAuth, testing) -----------------------------------------
+httpx==0.28.1
+
+# -- Monitoring ---------------------------------------------------------------
+sentry-sdk[fastapi]==2.64.0
+
+# -- Dev & Testing ------------------------------------------------------------
+pytest==8.4.1
+pytest-asyncio==1.0.0
+ruff==0.12.2
