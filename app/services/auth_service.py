@@ -22,7 +22,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.schemas.auth import UserLogin, UserRegister
 from app.utils.security import (
-    create_access_token,
     hash_password,
     verify_password,
 )
@@ -88,22 +87,25 @@ async def register_user(
 async def authenticate_user(
     db: AsyncSession,
     login_data: UserLogin,
-) -> str:
+) -> User:
     """
-    Authenticate a user and return a JWT access token.
+    Authenticate a user by verifying their credentials.
+
+    Returns the User object if credentials are valid. The caller
+    (route handler) is responsible for creating a session.
 
     Steps:
     1. Find user by email → 401 if not found
     2. Verify password → 401 if wrong
     3. Check account is active → 403 if disabled
-    4. Generate and return JWT access token
+    4. Return the authenticated User
 
     Args:
         db: Database session
         login_data: Validated login credentials
 
     Returns:
-        JWT access token string
+        The authenticated User object
 
     Raises:
         HTTPException 401: If credentials are invalid
@@ -112,8 +114,6 @@ async def authenticate_user(
     Security note:
         We use the same error message for "user not found" and
         "wrong password" to prevent user enumeration attacks.
-        An attacker shouldn't be able to determine whether an
-        email is registered by observing different error messages.
     """
     # Find user by email
     result = await db.execute(select(User).where(User.email == login_data.email))
@@ -146,8 +146,5 @@ async def authenticate_user(
             detail="Account is disabled",
         )
 
-    # Generate JWT token with user ID as the subject
-    access_token = create_access_token(data={"sub": str(user.id)})
-
     logger.info("Successful login: %s", user.email)
-    return access_token
+    return user

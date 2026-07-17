@@ -8,9 +8,10 @@ registered models) against the actual database schema. If a model isn't
 imported, Alembic won't know it exists and won't generate a migration for it.
 
 Usage:
-    from app.models import User
+    from app.models import User, Session
 """
 
+from app.models.session import Session
 from app.models.user import User
 
-__all__ = ["User"]
+__all__ = ["Session", "User"]

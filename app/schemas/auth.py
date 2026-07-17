@@ -142,7 +142,30 @@ class UserResponse(BaseModel):
 
 
 class TokenResponse(BaseModel):
-    """Schema for JWT token response after successful login."""
+    """Schema for JWT token response after successful login or refresh."""
 
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
+
+
+class RefreshTokenRequest(BaseModel):
+    """Schema for token refresh request."""
+
+    refresh_token: str = Field(
+        ...,
+        description="The refresh token received from login or previous refresh",
+    )
+
+
+class SessionResponse(BaseModel):
+    """Schema for session data in API responses."""
+
+    id: uuid.UUID
+    ip_address: str | None
+    user_agent: str | None
+    created_at: datetime
+    last_active_at: datetime
+    is_current: bool = False
+
+    model_config = {"from_attributes": True}

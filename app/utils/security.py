@@ -4,25 +4,26 @@ GateKeeper - Security Utilities
 Provides:
 - Password hashing (bcrypt)
 - Password verification
-- JWT token creation
-- JWT token decoding
+- JWT token creation and decoding
+- Refresh token generation and hashing
 
-Why bcrypt?
+Why bcrypt for passwords?
     Bcrypt is intentionally slow — it's designed to resist brute-force attacks.
     Even if your database leaks, attackers can't crack bcrypt hashes in
     reasonable time. Fast hashes like MD5/SHA256 can be cracked at billions
     of attempts per second. Bcrypt limits attempts to ~thousands per second.
 
-Why python-jose for JWT?
-    It supports multiple algorithms (HS256, RS256), handles expiration
-    automatically, and is well-maintained. We use HS256 (symmetric) for
-    simplicity — the same SECRET_KEY signs and verifies tokens.
+    Why SHA-256 for refresh tokens (not bcrypt)?
+    Refresh tokens are already random (128-bit UUID), so they don't need
+    slow hashing. SHA-256 is fast and sufficient — it just prevents
+    reading raw tokens from a leaked database.
 
 Note: We use bcrypt directly instead of passlib because passlib
-has compatibility issues with bcrypt >= 4.1. Using bcrypt directly
-is simpler and more maintainable.
+has compatibility issues with bcrypt >= 4.1.
 """
 
+import hashlib
+import secrets
 from datetime import UTC, datetime, timedelta
 
 import bcrypt
@@ -63,6 +64,32 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Refresh Tokens
+# ---------------------------------------------------------------------------
+
+
+def create_refresh_token() -> str:
+    """
+    Generate a cryptographically secure random refresh token.
+
+    Uses secrets.token_urlsafe which generates 32 bytes of randomness
+    encoded as a URL-safe base64 string (43 characters).
+    This gives 256 bits of entropy — essentially unguessable.
+    """
+    return secrets.token_urlsafe(32)
+
+
+def hash_token(token: str) -> str:
+    """
+    Hash a token using SHA-256 for database storage.
+
+    We never store raw refresh tokens — if the DB leaks,
+    attackers can't use the hashed values to impersonate users.
+    """
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
+
+
+# ---------------------------------------------------------------------------
 # JWT Tokens
 # ---------------------------------------------------------------------------
 
@@ -75,7 +102,9 @@ def create_access_token(
     Create a JWT access token.
 
     Args:
-        data: Payload to encode (typically {"sub": user_id})
+        data: Payload to encode. Typically includes:
+              - "sub": user_id (string)
+              - "session_id": session UUID (string)
         expires_delta: Custom expiration time. If None, uses settings default.
 
     Returns:
@@ -83,6 +112,7 @@ def create_access_token(
 
     The token contains:
         - sub: subject (user ID)
+        - session_id: which session created this token
         - exp: expiration timestamp
         - iat: issued-at timestamp
         - type: token type ("access")

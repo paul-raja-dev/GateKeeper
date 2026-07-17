@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     # No default — never run with a predictable secret key.
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
 
     model_config = SettingsConfigDict(
         env_file=".env",
