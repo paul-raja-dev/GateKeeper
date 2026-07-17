@@ -15,6 +15,7 @@ Usage in main.py:
 
 from fastapi import APIRouter
 
+from app.api.v1.admin import router as admin_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.sessions import router as sessions_router
 
@@ -23,3 +24,4 @@ v1_router = APIRouter()
 # Register module routers with their prefixes and tags
 v1_router.include_router(auth_router, prefix="/auth", tags=["Authentication"])
 v1_router.include_router(sessions_router, prefix="/sessions", tags=["Sessions"])
+v1_router.include_router(admin_router, prefix="/admin", tags=["Admin"])

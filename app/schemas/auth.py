@@ -20,6 +20,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from app.models.user import UserRole
+
 # ---------------------------------------------------------------------------
 # Request Schemas
 # ---------------------------------------------------------------------------
@@ -136,6 +138,7 @@ class UserResponse(BaseModel):
     full_name: str
     is_active: bool
     is_verified: bool
+    role: UserRole
     created_at: datetime
 
     model_config = {"from_attributes": True}

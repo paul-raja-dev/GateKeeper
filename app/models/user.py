@@ -10,16 +10,38 @@ Design decisions:
 - Soft delete via is_active: never actually delete user data
 - Separate is_verified flag: for email verification flow (Phase 5)
 - Timestamps with timezone: always store in UTC, convert on display
+- Role enum (Phase 4): flat RBAC — user / admin / superadmin
 """
 
+import enum
 import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, String, func
+from sqlalchemy import Enum as SQLAlchemyEnum
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base
+
+
+def _userrole_values(enum_cls):
+    """Return lowercase string values for the userrole PostgreSQL enum."""
+    return [e.value for e in enum_cls]
+
+
+class UserRole(str, enum.Enum):
+    """
+    User role for RBAC.
+
+    - USER: default role, access to own resources only
+    - ADMIN: can manage other users, read audit logs
+    - SUPERADMIN: full access including role management
+    """
+
+    USER = "user"
+    ADMIN = "admin"
+    SUPERADMIN = "superadmin"
 
 
 class User(Base):
@@ -78,7 +100,15 @@ class User(Base):
         Boolean,
         default=False,
         server_default="false",
-        comment="Admin flag — superusers bypass permission checks",
+        comment="Legacy superuser flag — use role field for RBAC instead",
+    )
+
+    # -- Authorization --------------------------------------------------------
+    role: Mapped[UserRole] = mapped_column(
+        SQLAlchemyEnum(UserRole, name="userrole", values_callable=_userrole_values),
+        default=UserRole.USER,
+        server_default="user",
+        comment="RBAC role: user | admin | superadmin",
     )
 
     # -- Timestamps -----------------------------------------------------------
