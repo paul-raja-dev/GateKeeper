@@ -43,6 +43,21 @@ class Settings(BaseSettings):
     SECRET_KEY: str
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    EMAIL_VERIFY_TOKEN_EXPIRE_MINUTES: int = 60  # 1 hour to verify email
+    PASSWORD_RESET_TOKEN_EXPIRE_MINUTES: int = 15  # 15 minutes to reset password
+
+    # -- Email (Phase 5) ------------------------------------------------------
+    # SMTP settings for sending verification and reset emails.
+    # Set SMTP_ENABLED=false to skip sending in development.
+    SMTP_ENABLED: bool = False
+    SMTP_HOST: str = "smtp.gmail.com"
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = "noreply@gatekeeper.dev"
+    SMTP_FROM_NAME: str = "GateKeeper"
+    # Base URL used in email links (e.g. https://app.yourdomain.com)
+    APP_BASE_URL: str = "http://localhost:8000"
 
     model_config = SettingsConfigDict(
         env_file=".env",

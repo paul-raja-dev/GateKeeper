@@ -132,7 +132,7 @@ ruff format app/ tests/
 - [x] Phase 1: Project Foundation & Configuration
 - [x] Phase 2: User Registration & Authentication
 - [x] Phase 3: Session Management
-- [ ] Phase 4: Authorization (RBAC)
+- [x] Phase 4: Authorization (RBAC)
 - [ ] Phase 5: Email Verification & Password Reset
 - [ ] Phase 6: OAuth (Google, GitHub)
 - [ ] Phase 7: Multi-Factor Authentication

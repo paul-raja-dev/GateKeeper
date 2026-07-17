@@ -172,3 +172,63 @@ class SessionResponse(BaseModel):
     is_current: bool = False
 
     model_config = {"from_attributes": True}
+
+
+# ---------------------------------------------------------------------------
+# Phase 5: Email Verification & Password Reset Schemas
+# ---------------------------------------------------------------------------
+
+
+class ResendVerificationRequest(BaseModel):
+    """Request to resend the verification email."""
+
+    email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.lower().strip()
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Request body for initiating a password reset."""
+
+    email: EmailStr
+
+    @field_validator("email")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.lower().strip()
+
+
+class ResetPasswordRequest(BaseModel):
+    """Request body for completing a password reset."""
+
+    token: str = Field(..., description="The password reset token from the email link")
+    new_password: str = Field(
+        ...,
+        min_length=8,
+        max_length=128,
+        description="New password (min 8 chars, must include upper, lower, digit)",
+        examples=["NewStrongP@ss1"],
+    )
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        """Same strength rules as registration."""
+        import re
+
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Password must contain at least one uppercase letter")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("Password must contain at least one lowercase letter")
+        if not re.search(r"\d", v):
+            raise ValueError("Password must contain at least one digit")
+        return v
+
+
+class MessageResponse(BaseModel):
+    """Generic message response for operations with no payload."""
+
+    message: str

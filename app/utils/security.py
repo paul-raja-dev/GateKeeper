@@ -166,3 +166,75 @@ def decode_access_token(token: str) -> dict | None:
         return payload
     except JWTError:
         return None
+
+
+# ---------------------------------------------------------------------------
+# One-Time Tokens (email verification & password reset)
+# ---------------------------------------------------------------------------
+
+
+def create_email_verify_token(user_id: str) -> str:
+    """
+    Create a short-lived JWT for email address verification.
+
+    Expires after EMAIL_VERIFY_TOKEN_EXPIRE_MINUTES (default 60 min).
+    Payload type is "email_verify" — decode_one_time_token validates this.
+    """
+    settings = get_settings()
+    expire = datetime.now(UTC) + timedelta(
+        minutes=settings.EMAIL_VERIFY_TOKEN_EXPIRE_MINUTES
+    )
+    payload = {
+        "sub": user_id,
+        "type": "email_verify",
+        "exp": expire,
+        "iat": datetime.now(UTC),
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+
+
+def create_password_reset_token(user_id: str) -> str:
+    """
+    Create a short-lived JWT for password reset.
+
+    Expires after PASSWORD_RESET_TOKEN_EXPIRE_MINUTES (default 15 min).
+    Payload type is "password_reset" — shorter expiry than verify tokens
+    because compromised reset links are higher risk.
+    """
+    settings = get_settings()
+    expire = datetime.now(UTC) + timedelta(
+        minutes=settings.PASSWORD_RESET_TOKEN_EXPIRE_MINUTES
+    )
+    payload = {
+        "sub": user_id,
+        "type": "password_reset",
+        "exp": expire,
+        "iat": datetime.now(UTC),
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm="HS256")
+
+
+def decode_one_time_token(token: str, expected_type: str) -> str | None:
+    """
+    Decode and validate a one-time JWT (email verify or password reset).
+
+    Args:
+        token: The raw JWT string.
+        expected_type: "email_verify" or "password_reset".
+
+    Returns:
+        The user_id string (from "sub" claim) if valid, None otherwise.
+
+    Why check expected_type?
+        Prevents token-type confusion attacks — a password-reset token
+        should never be accepted as an email-verification token.
+    """
+    settings = get_settings()
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
+        if payload.get("type") != expected_type:
+            return None
+        user_id: str | None = payload.get("sub")
+        return user_id
+    except JWTError:
+        return None

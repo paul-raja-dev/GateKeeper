@@ -2,30 +2,38 @@
 GateKeeper - Authentication Routes
 
 Endpoints:
-    POST /api/v1/auth/register    — Create a new user account
-    POST /api/v1/auth/login       — Authenticate and get token pair
-    POST /api/v1/auth/refresh     — Refresh tokens (rotate)
-    POST /api/v1/auth/logout      — Revoke current session
-    POST /api/v1/auth/logout-all  — Revoke ALL sessions
-    GET  /api/v1/auth/me          — Get current user profile (protected)
+    POST /api/v1/auth/register             — Create a new user account
+    POST /api/v1/auth/login                — Authenticate and get token pair
+    POST /api/v1/auth/refresh              — Refresh tokens (rotate)
+    POST /api/v1/auth/logout               — Revoke current session
+    POST /api/v1/auth/logout-all           — Revoke ALL sessions
+    GET  /api/v1/auth/me                   — Get current user profile
+    GET  /api/v1/auth/verify-email         — Verify email address (via token)
+    POST /api/v1/auth/resend-verification  — Resend verification email
+    POST /api/v1/auth/forgot-password      — Request a password reset email
+    POST /api/v1/auth/reset-password       — Complete a password reset
 
 These routes are intentionally thin — they parse the request,
 call the service layer, and return the response. No business logic here.
 """
 
-from fastapi import APIRouter, Depends, Request, status
+from fastapi import APIRouter, Depends, Query, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models.user import User
 from app.schemas.auth import (
+    ForgotPasswordRequest,
+    MessageResponse,
     RefreshTokenRequest,
+    ResendVerificationRequest,
+    ResetPasswordRequest,
     TokenResponse,
     UserLogin,
     UserRegister,
     UserResponse,
 )
-from app.services import auth_service, session_service
+from app.services import auth_service, session_service, verification_service
 from app.utils.dependencies import get_current_session_id, get_current_user
 
 router = APIRouter()
@@ -183,3 +191,122 @@ async def get_me(
     Requires a valid JWT access token in the Authorization header.
     """
     return current_user
+
+
+# ---------------------------------------------------------------------------
+# Phase 5: Email Verification & Password Reset
+# ---------------------------------------------------------------------------
+
+
+@router.get(
+    "/verify-email",
+    response_model=UserResponse,
+    summary="Verify email address",
+    responses={
+        400: {"description": "Invalid or expired token / already verified"},
+    },
+)
+async def verify_email(
+    token: str = Query(..., description="Verification token from the email link"),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Verify a user's email address using the token from the verification email.
+
+    The token is a short-lived signed JWT (1 hour). Once used, the user's
+    is_verified flag is set to True permanently.
+    """
+    return await verification_service.verify_email(db=db, token=token)
+
+
+@router.post(
+    "/resend-verification",
+    response_model=MessageResponse,
+    summary="Resend verification email",
+    responses={
+        400: {"description": "Email already verified"},
+    },
+)
+async def resend_verification(
+    body: ResendVerificationRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Resend the email verification link.
+
+    If SMTP is disabled (dev mode), the token is returned in the response.
+    """
+    from sqlalchemy import select
+
+    from app.models.user import User as UserModel
+
+    result = await db.execute(select(UserModel).where(UserModel.email == body.email))
+    user = result.scalar_one_or_none()
+
+    if user is None:
+        # Anti-enumeration: always return 200
+        return MessageResponse(
+            message="If this email is registered, a verification link has been sent."
+        )
+
+    token = await verification_service.send_verification(db=db, user=user)
+
+    from app.config import get_settings
+
+    settings = get_settings()
+    if not settings.SMTP_ENABLED:
+        return MessageResponse(message=f"[dev] Verification token: {token}")
+
+    return MessageResponse(message="Verification email sent. Check your inbox.")
+
+
+@router.post(
+    "/forgot-password",
+    response_model=MessageResponse,
+    summary="Request a password reset email",
+)
+async def forgot_password(
+    body: ForgotPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Send a password reset email for the given address.
+
+    Always returns 200 to prevent email enumeration.
+    If SMTP is disabled (dev mode), the reset token is included in the response.
+    """
+    token = await verification_service.request_password_reset(db=db, email=body.email)
+
+    from app.config import get_settings
+
+    settings = get_settings()
+    if token and not settings.SMTP_ENABLED:
+        return MessageResponse(message=f"[dev] Reset token: {token}")
+
+    return MessageResponse(
+        message="If this email is registered, a password reset link has been sent."
+    )
+
+
+@router.post(
+    "/reset-password",
+    response_model=UserResponse,
+    summary="Reset password using token",
+    responses={
+        400: {"description": "Invalid or expired reset token / weak password"},
+    },
+)
+async def reset_password(
+    body: ResetPasswordRequest,
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Set a new password using the reset token from the email.
+
+    The token expires after 15 minutes and is single-use (embedded expiry
+    in the JWT). After a successful reset, all existing sessions should be
+    revoked (future enhancement — Phase 11 hardening).
+    """
+    return await verification_service.reset_password(
+        db=db, token=body.token, new_password=body.new_password
+    )
